@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using scooterRental.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,7 +10,6 @@ namespace scooterRental.Tests
     public class RentalCompanyTests
     {
         private RentalCompany _target;
-        private MethodsForTests _methods;
         private string _name = "Company";
         private ScooterService _service = new();
         private List<RentedData> _rentedScooters = new();
@@ -20,14 +20,28 @@ namespace scooterRental.Tests
         private int _year = 2022;
         private decimal _price1 = 0.20m;
         private decimal _price2 = 0.10m;
+        private DateTime _normalTime = DateTime.UtcNow;
 
         [TestInitialize]
         public void Setup()
         {
-            _methods = new MethodsForTests(_rentedScooters);
             _target = new RentalCompany(_name, _service, _rentedScooters, _calculations);
             _service.AddScooter(_id1, _price1);
             _service.AddScooter(_id2, _price2);
+
+            _rentedScooters.Add(new RentedData()
+            {
+                Id = _id1,
+                Price = _price1,
+                StartRentTime = _normalTime.AddMinutes(-100),
+            });
+            _rentedScooters.Add(new RentedData()
+            {
+                Id = _id2,
+                Price = _price2,
+                StartRentTime = _normalTime.AddMinutes(-10),
+                EndRentTime = _normalTime
+            });
         }
 
         [TestMethod]
@@ -65,7 +79,7 @@ namespace scooterRental.Tests
             _target.StartRent(_id1);
 
             //Assert
-            Assert.ThrowsException<ScooterIsRentedException>(() => _target.StartRent(_id1));
+            Assert.ThrowsException<ScooterIsRentedOrNotRentedException>(() => _target.StartRent(_id1));
         }
 
         [TestMethod]
@@ -76,13 +90,13 @@ namespace scooterRental.Tests
         }
 
         [TestMethod]
-        public void StartRent_RentScooter_Scooter_rentedScootersListUpdated()
+        public void StartRent_RentScooter_Scooter_RentedScootersListUpdated()
         {
             //Act
             _target.StartRent(_id1);
 
             //Assert
-            Assert.AreEqual(1, _rentedScooters.Count);
+            Assert.AreEqual(3, _rentedScooters.Count);
         }
 
         [TestMethod]
@@ -102,7 +116,7 @@ namespace scooterRental.Tests
         public void EndRent_ReturnNotRentedScooter_NotRentedScooterException()
         {
             //Assert
-            Assert.ThrowsException<NotRentedScooterException>(() => _target.EndRent(_id1));
+            Assert.ThrowsException<ScooterIsRentedOrNotRentedException>(() => _target.EndRent(_id1));
         }
 
         [TestMethod]
@@ -124,7 +138,6 @@ namespace scooterRental.Tests
         {
             //Arrange
             _service.GetScooterById(_id1).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
 
             //Act
             var result = _target.EndRent(_id1);
@@ -136,10 +149,6 @@ namespace scooterRental.Tests
         [TestMethod]
         public void CalculateIncome_YearInvalid_InvalidYearException()
         {
-            //Arrange
-            _service.GetScooterById(_id2).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
-
             //Assert
             Assert.ThrowsException<InvalidYearException>(() => _target.CalculateIncome(45, true));
         }
@@ -147,14 +156,6 @@ namespace scooterRental.Tests
         [TestMethod]
         public void CalculateIncome_YearNullIncludeNotCompletedRentalsTrue_Income21()
         {
-            //Arrange
-            _service.GetScooterById(_id1).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
-
-            _service.GetScooterById(_id2).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes10();
-            _target.EndRent(_id2);
-
             //Act
             var result = _target.CalculateIncome(null, true);
 
@@ -165,14 +166,6 @@ namespace scooterRental.Tests
         [TestMethod]
         public void CalculateIncome_YearNullIncludeNotCompletedRentalsFalse_Income1()
         {
-            //Arrange
-            _service.GetScooterById(_id1).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
-
-            _service.GetScooterById(_id2).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes10();
-            _target.EndRent(_id2);
-
             //Act
             var result = _target.CalculateIncome(null, false);
 
@@ -183,14 +176,6 @@ namespace scooterRental.Tests
         [TestMethod]
         public void CalculateIncome_YearNotNullIncludeNotCompletedRentalsFalse_Income1()
         {
-            //Arrange
-            _service.GetScooterById(_id1).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
-
-            _service.GetScooterById(_id2).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes10();
-            _target.EndRent(_id2);
-
             //Act
             var result = _target.CalculateIncome(_year, false);
 
@@ -201,14 +186,6 @@ namespace scooterRental.Tests
         [TestMethod]
         public void CalculateIncome_YearNotNullIncludeNotCompletedRentalsTrue_Income21()
         {
-            //Arrange
-            _service.GetScooterById(_id1).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes100();
-
-            _service.GetScooterById(_id2).IsRented = true;
-            _methods.AddNoEndTimeStartTimeNegativeMinutes10();
-            _target.EndRent(_id2);
-
             //Act
             var result = _target.CalculateIncome(_year, true);
 

@@ -7,11 +7,12 @@ namespace scooterRental
 {
     public class RentalCompany : IRentalCompany
     {
-        private ScooterService _service;
+        private IScooterService _service;
         private List<RentedData> _rentedScooters;
         private readonly ICalculations _calculations;
+        
 
-        public RentalCompany(string name, ScooterService service, List<RentedData> rentedScooters, ICalculations calculations)
+        public RentalCompany(string name, IScooterService service, List<RentedData> rentedScooters, ICalculations calculations)
         {
             if (String.IsNullOrEmpty(name))
             {
@@ -30,12 +31,7 @@ namespace scooterRental
         {
             var scooter = _service.GetScooterById(id);
 
-            if (scooter.IsRented)
-            {
-                throw new ScooterIsRentedException();
-            }
-
-            scooter.IsRented = true;
+            ThrowExceptions(id, "Scooter is already rented", scooter.IsRented);
 
             _rentedScooters.Add(new RentedData()
             {
@@ -50,12 +46,7 @@ namespace scooterRental
             RentedData rented;
             var scooter = _service.GetScooterById(id);
 
-            if (!scooter.IsRented)
-            {
-                throw new NotRentedScooterException();
-            }
-
-            scooter.IsRented = false;
+            ThrowExceptions(id, "Scooter is not rented", !scooter.IsRented);
             rented = _rentedScooters.First(s => s.Id == id && !s.EndRentTime.HasValue);
             rented.EndRentTime = DateTime.UtcNow;
 
@@ -64,31 +55,20 @@ namespace scooterRental
 
         public decimal CalculateIncome(int? year, bool includeNotCompletedRentals)
         {
-            decimal yearIncome = 0m;
+            return _calculations.CalculateIncome(year, includeNotCompletedRentals, _rentedScooters);
+        }
 
-            if (year.ToString().Length != 4 && year != null)
-            {
-                throw new InvalidYearException();
-            }
+        public void ThrowExceptions(string id, string message, bool isRented)
+        {
+            var scooter = _service.GetScooterById(id);
 
-            if (year == null && includeNotCompletedRentals)
+            if (isRented)
             {
-                yearIncome = _calculations.CalculateAllYearsIncludeNotCompletedRentalsTrue(_rentedScooters);
-            }
-            else if (year == null && !includeNotCompletedRentals)
-            {
-                yearIncome = _calculations.CalculateAllYearsIncludeNotCompletedRentalsFalse(_rentedScooters);
-            }
-            else if (year != null && !includeNotCompletedRentals)
-            {
-                yearIncome = _calculations.CalculateYearIncludeNotCompletedRentalsFalse(_rentedScooters, (int)year);
-            }
-            else if (year != null && includeNotCompletedRentals)
-            {
-                yearIncome = _calculations.CalculateYearIncludeNotCompletedRentalsTrue(_rentedScooters, (int)year);
+                throw new ScooterIsRentedOrNotRentedException(message);
             }
 
-            return yearIncome;
+            scooter.IsRented = !scooter.IsRented;
+            //
         }
     }
 }

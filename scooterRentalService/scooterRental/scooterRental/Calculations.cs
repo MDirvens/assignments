@@ -1,15 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using scooterRental.Exceptions;
 
 namespace scooterRental
 {
     public class Calculations : ICalculations
     {
+        public decimal CalculateIncome(int? year, bool includeNotCompletedRentals, List<RentedData> rentedScooters)
+        {
+            decimal yearIncome = 0m;
+
+            if (year.ToString().Length != 4 && year != null)
+            {
+                throw new InvalidYearException();
+            }
+
+            if (year == null && includeNotCompletedRentals)
+            {
+                yearIncome = CalculateAllYearsIncludeNotCompletedRentalsTrue(rentedScooters);
+            }
+            else if (year == null && !includeNotCompletedRentals)
+            {
+                yearIncome = CalculateAllYearsIncludeNotCompletedRentalsFalse(rentedScooters);
+            }
+            else if (year != null && !includeNotCompletedRentals)
+            {
+                yearIncome = CalculateYearIncludeNotCompletedRentalsFalse(rentedScooters, (int)year);
+            }
+            else if (year != null && includeNotCompletedRentals)
+            {
+                yearIncome = CalculateYearIncludeNotCompletedRentalsTrue(rentedScooters, (int)year);
+            }
+
+            return yearIncome;
+        }
+
         public decimal CalculateRentalPayment(RentedData scooter)
         {
             var time = scooter.EndRentTime - scooter.StartRentTime;
-            return Math.Round((decimal)time.Value.TotalMinutes*scooter.Price, 4);
+            var payment = (decimal) time.Value.TotalMinutes * scooter.Price;
+
+            if (payment < 0)
+            {
+                throw new NegativePriceExceptions();
+            }
+            
+            return Math.Round(payment, 4);
         }
 
         public decimal CalculateAllYearsIncludeNotCompletedRentalsFalse(List<RentedData> rentedScooters)
