@@ -1,4 +1,4 @@
-# Scooter rental service  
+# :motor_scooter: Scooter rental service  
 
 The project is written in C#. Program uses various exception messages in case of errors. The code is verified by unit tests.
 It offers the possibility to: 
